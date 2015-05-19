@@ -13,7 +13,6 @@ class BaseBoard(object):
     '''
     Provides basic functionality for a sudoku board.
     '''
-    
     def __init__(self, **params):
         self._printCycle = 1000000
         self._iteration = 0
@@ -56,15 +55,15 @@ class BaseBoard(object):
             self.__board[index] = content
         return self.__board[index]
 
-    
+
     def describeCompressed(self, out):
         [out.write(str(self.__board[i])) for i in range(0, len(self.__board))]
 
 
     def clone(self):
         return BaseBoard(BOARD=[self.__board[i] for i in range(len(self.__board))])
-    
-    
+
+
     def __str__(self):
         result = ""
         for squareY in range(3):
@@ -109,6 +108,11 @@ class RecursiveBoard(BaseBoard):
                         return [j, i]
             return [MAX_COL_INDEX + 1, MAX_ROW_INDEX + 1]
 
+        for i in range(9):
+            val = val[i]
+            if val != INTERNAL_FREE:
+                self.remainingVals[self.col][self.row][i] = INTERNAL_FREE
+                return val
 
         def getValidVals():
             vals = [i for i in range(9)]
@@ -179,8 +183,6 @@ class IterativeBoard(BaseBoard):
     '''
     Provides a iterative solving algorithm.
     Should but is not more performant than the recursive one.
-    I suspect this is partly due to these neat little traps 'provided' by python.
-    I wont optimize further as I am really pissed by these 'features'.
     '''
 
     def __init__(self):
@@ -190,28 +192,36 @@ class IterativeBoard(BaseBoard):
         self.solutions = []
         self.metaIteration = 0
         self.iteration = 0
-        self.remainingVals = [[OCCUPIED if self._access(j, i) != INTERNAL_FREE 
+        self.remainingVals = [[OCCUPIED if self._access(j, i) != INTERNAL_FREE
             else [k for k in range(9)]
             for i in range(9)] for j in range(9)]
 
 
+    def tile(self, x, y, content = INVALID):
+        if 1 <= content <= 9:
+            self.remainingVals[x][y] = OCCUPIED
+        return BaseBoard.tile(self, x, y, content)
+
     def valsRemaining(self, c, r):
-        for i in range(9):
-            val = self.remainingVals[c][r][i]
-            if val != INTERNAL_FREE  and val != OCCUPIED:
-                return True
+        val = self.remainingVals[c][r]
+        if val != OCCUPIED:
+            for i in range(9):
+                if val[i] != INTERNAL_FREE:
+                    return True
         return False
 
-        
+
     def getNextVal(self):
-        for i in range(9):
-            val = self.remainingVals[self.col][self.row][i]
-            if val != INTERNAL_FREE  and val != OCCUPIED:
-                self.remainingVals[self.col][self.row][i] = INTERNAL_FREE
-                return val
+        values = self.remainingVals[self.col][self.row]
+        if values != OCCUPIED:
+            for i in range(9):
+                val = values[i]
+                if val != INTERNAL_FREE:
+                    self.remainingVals[self.col][self.row][i] = INTERNAL_FREE
+                    return val
         return False
 
-        
+
     def propagate(self):
         for i in range(self.col + 1, MAX_COL_INDEX + 1):
             if self._access(i, self.row) == INTERNAL_FREE:
@@ -225,7 +235,7 @@ class IterativeBoard(BaseBoard):
                     return True
         return False
 
-            
+
     def rewind(self):
         i = self.row
         j = self.col
@@ -243,7 +253,12 @@ class IterativeBoard(BaseBoard):
         return False
 
 
-    def setValidVals(self):         
+    def setValidVals(self):
+        '''
+        Will calculate all possible values that can be placed on the current
+        tile and places the result within remainingVals.
+        Does not check whether the current tile has been OCCUPIED.
+        '''
         vals = self.remainingVals[self.col][self.row]
         for i in range(9):
             vals[i] = i
@@ -280,7 +295,7 @@ class IterativeBoard(BaseBoard):
                 # There are no free fields?
                 return
         # Now we should have found a possibly free field
-        self.setValidVals()            
+        self.setValidVals()
         while True:
             if self.iteration >= self._printCycle:
                 print(self.metaIteration)
@@ -301,12 +316,31 @@ class IterativeBoard(BaseBoard):
             else:
                 self.setValidVals()
 
-            
+
 
 if __name__ == '__main__':
-    # board = IterativeBoard()
-    board = RecursiveBoard()
+    board = IterativeBoard()
+    # board = RecursiveBoard()
     board.setPrintCycle(1)
+    board.tile(0, 0, 1)
+    board.tile(0, 1, 2)
+    board.tile(0, 2, 3)
+    board.tile(1, 0, 4)
+    board.tile(1, 1, 5)
+    board.tile(1, 2, 6)
+    board.tile(2, 0, 7)
+    board.tile(2, 1, 8)
+    board.tile(2, 2, 9)
+
+    board.tile(7, 5, 2)
+    board.tile(7, 6, 3)
+    board.tile(7, 7, 5)
+    board.tile(5, 5, 1)
+    board.tile(5, 6, 4)
+    board.tile(5, 7, 7)
+    board.tile(6, 5, 6)
+    board.tile(6, 6, 9)
+    board.tile(6, 7, 8)
     # board.tile(7, 0, 1)
     # board.tile(0, 1, 4)
     # board.tile(1, 2, 2)
@@ -326,85 +360,85 @@ if __name__ == '__main__':
     # board.tile(5, 8, 6)
 
     #board.tile(0, 0, 2)
-    board.tile(0, 1, 9)
-    board.tile(0, 3, 7)
-    board.tile(0, 4, 5)
-    board.tile(0, 7, 1)
-    
-    board.tile(1, 0, 6)
-    board.tile(1, 2, 8)
-    board.tile(1, 3, 2)
-    board.tile(1, 4, 1)
-    board.tile(1, 5, 4)
-    board.tile(1, 7, 9)
-    board.tile(1, 8, 7)
+    # board.tile(0, 1, 9)
+    # board.tile(0, 3, 7)
+    # board.tile(0, 4, 5)
+    # board.tile(0, 7, 1)
 
-    board.tile(2, 0, 1)
-    board.tile(2, 1, 4)
-    board.tile(2, 2, 7)
-    board.tile(2, 3, 6)
-    board.tile(2, 4, 3)
-    board.tile(2, 5, 9)
-    board.tile(2, 6, 5)
-    board.tile(2, 7, 8)
-    board.tile(2, 8, 2)
+    # board.tile(1, 0, 6)
+    # board.tile(1, 2, 8)
+    # board.tile(1, 3, 2)
+    # board.tile(1, 4, 1)
+    # board.tile(1, 5, 4)
+    # board.tile(1, 7, 9)
+    # board.tile(1, 8, 7)
 
-    board.tile(3, 0, 9)
-    board.tile(3, 1, 6)
-    board.tile(3, 2, 5)
-    board.tile(3, 5, 1)
-    board.tile(3, 6, 2)
-    board.tile(3, 7, 7)
+    # board.tile(2, 0, 1)
+    # board.tile(2, 1, 4)
+    # board.tile(2, 2, 7)
+    # board.tile(2, 3, 6)
+    # board.tile(2, 4, 3)
+    # board.tile(2, 5, 9)
+    # board.tile(2, 6, 5)
+    # board.tile(2, 7, 8)
+    # board.tile(2, 8, 2)
 
-    board.tile(4, 0, 8)
-    board.tile(4, 1, 3)
-    board.tile(4, 2, 4)
-    board.tile(4, 4, 2)
-    board.tile(4, 5, 7)
-    board.tile(4, 6, 6)
-    board.tile(4, 7, 5)
-    board.tile(4, 8, 1)
+    # board.tile(3, 0, 9)
+    # board.tile(3, 1, 6)
+    # board.tile(3, 2, 5)
+    # board.tile(3, 5, 1)
+    # board.tile(3, 6, 2)
+    # board.tile(3, 7, 7)
 
-    board.tile(5, 0, 7)
-    board.tile(5, 1, 2)
-    board.tile(5, 2, 1)
-    board.tile(5, 3, 3)
-    board.tile(5, 4, 6)
-    board.tile(5, 6, 9)
-    board.tile(5, 7, 4)
-    board.tile(5, 8, 8)
+    # board.tile(4, 0, 8)
+    # board.tile(4, 1, 3)
+    # board.tile(4, 2, 4)
+    # board.tile(4, 4, 2)
+    # board.tile(4, 5, 7)
+    # board.tile(4, 6, 6)
+    # board.tile(4, 7, 5)
+    # board.tile(4, 8, 1)
 
-    board.tile(6, 1, 7)
-    board.tile(6, 2, 2)
-    board.tile(6, 3, 8)
-    board.tile(6, 4, 9)
-    board.tile(6, 5, 6)
-    board.tile(6, 6, 1)
-    board.tile(6, 7, 3)
-    board.tile(6, 8, 4)
+    # board.tile(5, 0, 7)
+    # board.tile(5, 1, 2)
+    # board.tile(5, 2, 1)
+    # board.tile(5, 3, 3)
+    # board.tile(5, 4, 6)
+    # board.tile(5, 6, 9)
+    # board.tile(5, 7, 4)
+    # board.tile(5, 8, 8)
 
-    board.tile(7, 0, 4)
-    board.tile(7, 1, 1)
-    board.tile(7, 2, 6)
-    board.tile(7, 3, 5)
-    board.tile(7, 5, 3)
-    board.tile(7, 6, 8)
-    board.tile(7, 7, 2)
+    # board.tile(6, 1, 7)
+    # board.tile(6, 2, 2)
+    # board.tile(6, 3, 8)
+    # board.tile(6, 4, 9)
+    # board.tile(6, 5, 6)
+    # board.tile(6, 6, 1)
+    # board.tile(6, 7, 3)
+    # board.tile(6, 8, 4)
 
-    board.tile(8, 0, 3)
-    board.tile(8, 1, 8)
-    board.tile(8, 3, 1)
-    board.tile(8, 4, 4)
-    board.tile(8, 5, 2)
-    board.tile(8, 6, 7)
-    board.tile(8, 8, 5)
+    # board.tile(7, 0, 4)
+    # board.tile(7, 1, 1)
+    # board.tile(7, 2, 6)
+    # board.tile(7, 3, 5)
+    # board.tile(7, 5, 3)
+    # board.tile(7, 6, 8)
+    # board.tile(7, 7, 2)
 
-    print "This is the given board: \n"
-    print board
+    # board.tile(8, 0, 3)
+    # board.tile(8, 1, 8)
+    # board.tile(8, 3, 1)
+    # board.tile(8, 4, 4)
+    # board.tile(8, 5, 2)
+    # board.tile(8, 6, 7)
+    # board.tile(8, 8, 5)
+
+    print("This is the given board: \n")
+    print(board)
     sys.stderr.write(str(board))
     sys.stderr.write("\n")
     sys.stdin.readline()
     sols = board.solve()
     for i in sols:
-        print str(i)
+        print(str(i))
 
