@@ -8,10 +8,28 @@ import sys
 class SquareSelector:
 
     def __init__(self, parent, square):
-        pass
 
-    def get_selection(self):
-        return 6
+
+        frame = Toplevel(parent)
+
+        def close_us(event):
+            frame.destroy()
+
+        def create_selection_setter_and_closer(value):
+            def set_and_close():
+                square.set(value)
+                frame.destroy()
+            return set_and_close
+
+        frame.bind("<FocusOut>", close_us)
+        frame.grab_set()
+        for y in range(3):
+            frame.grid_columnconfigure(y, weight=0)
+            for x in range(3):
+                frame.grid_rowconfigure(x, weight=0)
+                value = 1 + x + y * 3
+                button = Button(frame, text=str(value), command=create_selection_setter_and_closer(value))
+                button.grid(row=y, column=x)
 
 #-------------------------------------------------------------------------------
 
@@ -20,9 +38,7 @@ class SquareWidget:
     def __init__(self, parent, square):
 
         def show_selector():
-            selection = SquareSelector(parent, square).get_selection()
-            if selection:
-                self.__square.set(selection)
+            SquareSelector(parent, square).get_selection()
 
         self.__square = square
         self.__widget = Button(parent)
