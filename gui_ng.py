@@ -1,5 +1,6 @@
-from   tkinter import *
-from   sudoku_ng  import Square
+from tkinter import *
+from tkinter.ttk import Separator
+from sudoku_ng  import Field
 
 import sys
 
@@ -7,7 +8,7 @@ import sys
 
 class SquareSelector:
 
-    def __init__(self, parent, square):
+    def __init__(self, parent, field, x, y):
 
 
         frame = Toplevel(parent)
@@ -17,30 +18,38 @@ class SquareSelector:
 
         def create_selection_setter_and_closer(value):
             def set_and_close():
-                square.set(value)
+                field.set(x, y, value)
                 frame.destroy()
             return set_and_close
 
         frame.bind("<FocusOut>", close_us)
         frame.grab_set()
-        for y in range(3):
-            frame.grid_columnconfigure(y, weight=0)
-            for x in range(3):
-                frame.grid_rowconfigure(x, weight=0)
-                value = 1 + x + y * 3
-                button = Button(frame, text=str(value), command=create_selection_setter_and_closer(value))
-                button.grid(row=y, column=x)
+
+        possibilities = field.get_square(x, y).possibilities()
+
+        for r in range(3):
+            frame.grid_columnconfigure(r, weight=0)
+            for c in range(3):
+                frame.grid_rowconfigure(c, weight=0)
+                value = 1 + c + r * 3
+                if value in possibilities:
+                    button = Button(frame, text=str(value), command=create_selection_setter_and_closer(value))
+                else:
+                    button = Button(frame, text=str(' '), state=DISABLED)
+                button.grid(row=r, column=c)
 
 #-------------------------------------------------------------------------------
 
 class SquareWidget:
 
-    def __init__(self, parent, square):
+    def __init__(self, parent, field, x, y):
 
         def show_selector():
-            SquareSelector(parent, square).get_selection()
+            SquareSelector(parent, field, x, y)
 
-        self.__square = square
+        self.__field = field
+        self.__square = field.get_square(x, y)
+        self.__coords = (x, y)
         self.__widget = Button(parent)
         self.__textvar = StringVar()
 
@@ -59,16 +68,34 @@ class SquareWidget:
 
 def create_gui(root):
 
-    square = Square()
+    field = Field()
 
-    for c in [0]:
+    for c in range(3):
         root.grid_columnconfigure(c, weight=0)
 
-    for r in [0]:
+    for r in range(3):
         root.grid_rowconfigure(r, weight=0)
 
-    square_widget = SquareWidget(root, square)
-    square_widget.grid(column=0, row=0)
+    current_col = 0
+    current_row = 0
+
+    for r in range(9):
+        for c in range(9):
+            w = SquareWidget(root, field, r + 1, c + 1)
+            w.grid(column=current_col, row=current_row)
+            current_col += 1
+            if (c + 1) % 3 == 0:
+                w = Separator(root, orient="vertical")
+                w.grid(column=current_col, row=current_row)
+                current_col += 1
+
+        current_col = 0
+        current_row += 1
+
+        if (r + 1) % 3 == 0:
+            w = Separator(root, orient="horizontal")
+            w.grid(column=current_col, row=current_row)
+            current_row += 1
 
 #-------------------------------------------------------------------------------
 

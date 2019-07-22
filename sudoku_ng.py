@@ -71,7 +71,7 @@ class Square:
         self._possibilities = [i for i in range(1, 10)]
         self._listeners = []
 
-    def __str__(self):
+    def __str_matrix(self):
         content = []
         row = []
         for i in range(1, 10):
@@ -84,6 +84,11 @@ class Square:
                 content.append("".join(row))
                 row = []
         return '\n'.join(content)
+
+    def __str__(self):
+        if self.is_pinned():
+            return str(self.pinned_value())
+        return self.__str_matrix()
 
     def _notify_all(self):
         for listener in self._listeners:
@@ -152,7 +157,7 @@ class Field:
         if not self._squares[y - 1][x - 1].set(value):
             return False
 
-        self._pin(x, y, v)
+        self._pin(x, y, value)
 
     #---------------------------------------------------------------------------
 
