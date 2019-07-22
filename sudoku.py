@@ -1,444 +1,277 @@
+#!/usr/bin/python3
+#------------------------------------------------------------------------------
+#
+# (C) 2019 Michael J. Beer
+#
+# All rights reserved.
+#
+# Redistribution  and use in source and binary forms, with or with‐
+# out modification, are permitted provided that the following  con‐
+# ditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above  copy‐
+# right  notice,  this  list  of  conditions and the following dis‐
+# claimer in the documentation and/or other materials provided with
+# the distribution.
+#
+# 3.  Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote  products  derived
+# from this software without specific prior written permission.
+#
+# THIS  SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBU‐
+# TORS "AS IS" AND ANY EXPRESS OR  IMPLIED  WARRANTIES,  INCLUDING,
+# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE  ARE  DISCLAIMED.  IN  NO  EVENT
+# SHALL  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DI‐
+# RECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR  CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS IN‐
+# TERRUPTION)  HOWEVER  CAUSED  AND  ON  ANY  THEORY  OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING  NEGLI‐
+# GENCE  OR  OTHERWISE)  ARISING  IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#------------------------------------------------------------------------------
+
+"""
+General-purpose Signalling Server for testing.
+
+@author Michael J. Beer, DLR/GSOC
+@copyright 2019 Michael J. Beer, michael.josef.beer@googlemail.com
+@date 2019-04-19
+
+@license BSD 3-Clause
+@version 1.0.0
+
+@status Development
+
+"""
+
+#------------------------------------------------------------------------------
+
 import sys
-import copy
 
-INTERNAL_FREE = "."
-FREE          = "" 
-OCCUPIED      = "X"
-INVALID       = "invalid"
-MAX_ROW_INDEX = 8
-MAX_COL_INDEX = 8
+#-------------------------------------------------------------------------------
 
+def next_coordinates(x, y):
+    if y < 3:
+        return (x, y + 1)
+    if x < 3:
+        return (x + 1, 1)
+    return None
 
-class BaseBoard(object):
-    '''
-    Provides basic functionality for a sudoku board.
-    '''
-    def __init__(self, **params):
-        self._printCycle = 1000000
-        self._iteration = 0
-        self._iterationRaise = 0
-        self._solutions = []
-        if 'BOARD' in params:
-            self.__board = params['BOARD'];
-        else:
-            self.__board = [INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,
-                            INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE,  INTERNAL_FREE, INTERNAL_FREE, INTERNAL_FREE]
+#-------------------------------------------------------------------------------
 
+class Square:
 
-    def tile(self, x, y, content = INVALID):
-        if content == INVALID:
-            cont = self._access(x, y)
-        elif 1 <= content <= 9:
-            cont = self._access(x, y, content - 1)
-        elif content == FREE:
-            cont = self._access(x, y, INTERNAL_FREE)
-        else:
-            raise ValueError("invalid")
-        return cont + 1 if 0 <= cont <= 8 else (FREE if cont == INTERNAL_FREE else cont)
+    def __init__(self):
+        self._possibilities = [i for i in range(1, 10)]
+        self._listeners = []
 
-
-    def setPrintCycle(self, cycle = -1):
-        self._printCycle = cycle
-        self._iterationRaise = 0 if cycle < 0 else 1
-
-
-    def _access(self, x, y, content = INVALID):
-        index = y * 9 + x
-        if content != INVALID:
-            self.__board[index] = content
-        return self.__board[index]
-
-
-    def describeCompressed(self, out):
-        [out.write(str(self.__board[i])) for i in range(0, len(self.__board))]
-
-
-    def clone(self):
-        return BaseBoard(BOARD=[self.__board[i] for i in range(len(self.__board))])
-
+    def __str_matrix(self):
+        content = []
+        row = []
+        for i in range(1, 10):
+            v = i
+            if v not in self._possibilities:
+                v = ' '
+            row.append(str(v))
+            print("{}: {}".format(i, row))
+            if i % 3 == 0:
+                content.append("".join(row))
+                row = []
+        return '\n'.join(content)
 
     def __str__(self):
-        result = ""
-        for squareY in range(3):
-            for row in [squareY * 3 + k for k in range(3)]: 
-                for squareX in range(3):
-                    for col in [squareX * 3 + k for k in range(3)]:
-                        result += str(self.tile(col,row))
-                        result += " "
-                    result += "   "
-                result += "\n"
-            result += "\n"
-        return result + "\n\n\n"
+        if self.is_pinned():
+            return str(self.pinned_value())
+        return self.__str_matrix()
 
+    def _notify_all(self):
+        for listener in self._listeners:
+            listener(self)
 
-    def solve(self):
-        '''
-        Tries to find solutions for the given sudoku puzzle.
-        Returns a list of all solutions found.
-        This method must be implemented by derived classes.
-        '''
+    def possibilities(self):
+        return self._possibilities
+
+    def set(self, v):
+        p = self._possibilities
+        if not v in p:
+            return None
+        self._possibilities = [v]
+        self._notify_all()
+        return p
+
+    def pinned_value(self):
+        if self.is_pinned():
+            return self._possibilities[0]
+        return None
+
+    def is_pinned(self):
+        return len(self._possibilities) == 1
+
+    def drop(self, x):
+        """
+        Returns True if value could be removed.
+        Returns False if the value could not be removed from possibilities
+        (because it was not contained within)
+        """
+
+        if len(self._possibilities) < 1:
+            raise("Cannot drop")
+        if x in self._possibilities:
+            self._possibilities.remove(x)
+            self._notify_all()
+            return True
+        return False
+
+    def change_listener(self, listener):
+        self._listeners = [listener]
+
+#-------------------------------------------------------------------------------
+
+class Field:
+
+    def __init__(self):
+        self._squares = [[Square() for i in range(1,10)] for i in range(1,10)]
+        # During solution process, this 'shadow field' will keep a list of
+        # values not tried yet.
+        self._solution_state = [[[] for i in range(1,10)] for i in range(1,10)]
+        self._solution_current_field = [1,1]
+
+    #---------------------------------------------------------------------------
+
+    def set(self, x, y, value):
+        if not (1 <= x <= 9):
+            return False
+
+        if not (1 <= y <= 9):
+            return False
+
+        if not (1 <= value <= 9):
+            return False
+
+        if not self._squares[y - 1][x - 1].set(value):
+            return False
+
+        self._pin(x, y, value)
+
+    #---------------------------------------------------------------------------
+
+    def get_square(self, x, y):
+
+        return self._squares[y - 1][x - 1]
+
+    #---------------------------------------------------------------------------
+
+    def _pin(self, x, y, v):
+        new_pinned = [(x,y,v)]
+
+        while new_pinned:
+            pinned = new_pinned
+            new_pinned = []
+            for x,y,v in pinned:
+                new_pinned = new_pinned + self._remove_from_row(x, y, v)
+                new_pinned = new_pinned + self._remove_from_column(x, y, v)
+                new_pinned = new_pinned + self._remove_from_subfield(x, y, v)
+
+        return True
+
+    #---------------------------------------------------------------------------
+
+    def _remove_from_row(self, x, y, value):
+        """
+        Returns a list of all coords that could be pinned down to
+        one certain value during this remove action
+        """
+
+        pinned = []
+        for yv in range(1, 10):
+            if not yv == y:
+               s = self._squares[yv - 1][x - 1]
+               if s.drop(value) and s.is_pinned():
+                   pinned.append((x, yv, s.pinned_value()))
+        return pinned
+
+    #---------------------------------------------------------------------------
+
+    def _remove_from_column(self, x, y, value):
+        pinned = []
+        for xv in range(1, 10):
+            if not xv == x:
+               s = self._squares[y - 1][xv - 1]
+               if s.drop(value) and s.is_pinned():
+                   pinned.append((xv, y, s.pinned_value()))
+        return pinned
+
+    #---------------------------------------------------------------------------
+
+    def _remove_from_subfield(self, x, y, value):
+        print("Going to drop " + str(x) + ":" + str(y))
+        pinned = []
+        x_subfield = int((x - 1) / 3)
+        y_subfield = int((y - 1) / 3)
+        for xv in [x_subfield * 3 + i for i in range(1, 4)]:
+            for yv in [y_subfield * 3 + i for i in range(1, 4)]:
+                if xv == x and yv == y:
+                    continue
+                print("Dropping " + str(value) + " from " +
+                        str(yv) + ":" + str(xv))
+                s = self._squares[yv - 1][xv - 1]
+                if s.drop(value) and s.is_pinned():
+                    pinned.append((xv, yv, s.pinned_value()))
+        return pinned
+
+    #---------------------------------------------------------------------------
+
+    def print(self):
+
+        lineno = 1
+        for y in self._squares:
+            colno = 1
+            for x in y:
+                sys.stdout.write(
+                        "[" +
+                        " ".join( [str(v) for v in x.possibilities()]) +
+                        "]" + str("   "))
+                colno = (colno + 1) % 3
+                if colno == 1:
+                    sys.stdout.write("  ")
+            sys.stdout.write("\n")
+            lineno = (lineno + 1) % 3
+            if lineno == 1:
+                sys.stdout.write("\n")
+
+    #---------------------------------------------------------------------------
+
+    def next_solution(self):
+        # Continue with state in solution_state and solution_current_field
         pass
 
+#-------------------------------------------------------------------------------
 
-class RecursiveBoard(BaseBoard):
-    '''
-    Provides a recursive solving algorithm
-    '''
+if __name__ == "__main__":
+    # field = Field()
+    # line = " "
+    # while line:
+    #     line = sys.stdin.readline()
+    #     line = line.strip()
+    #     if len(line) != 3:
+    #         continue
+    #     x = int(line[0])
+    #     y = int(line[1])
+    #     v = int(line[2])
+    #     field.set(x, y, v)
+    #     field.print()
 
-    def __init__(self):
-        BaseBoard.__init__(self)
+    coords = (1, 1)
 
-
-    def __solveInternally(self, col, row):
-
-        def propagate():
-            for i in range(col + 1, MAX_COL_INDEX + 1):
-                if self._access(i, row) == INTERNAL_FREE:
-                    return [i, row]
-            for i in range(row + 1, MAX_ROW_INDEX + 1):
-                for j in range(9):
-                    if self._access(j, i) == INTERNAL_FREE:
-                        return [j, i]
-            return [MAX_COL_INDEX + 1, MAX_ROW_INDEX + 1]
-
-        for i in range(9):
-            val = val[i]
-            if val != INTERNAL_FREE:
-                self.remainingVals[self.col][self.row][i] = INTERNAL_FREE
-                return val
-
-        def getValidVals():
-            vals = [i for i in range(9)]
-            # Step one: Remove all values that appear within same column
-            for i in range(9):
-                tileContent = self._access(col, i)
-                if tileContent != INTERNAL_FREE:
-                    vals[tileContent] = INTERNAL_FREE
-            # Step two: Remove all values that appear within same row
-            for i in range(9):
-                tileContent = self._access(i, row)
-                if tileContent != INTERNAL_FREE:
-                    vals[tileContent] = INTERNAL_FREE
-            # Step three: Check 'boardlets'
-            boardletRow = int(row / 3) * 3
-            boardletCol = int(col / 3) * 3
-            for c in range(3):
-                for r in range(3):
-                    tileContent = self._access(boardletCol + c, boardletRow + r)
-                    if tileContent != INTERNAL_FREE:
-                        vals[tileContent] = INTERNAL_FREE
-            return vals
-
-
-        def printBoard(printStream = sys.stdout):
-            printStream.write(str(self))
-            printStream.write("\n")
-
-
-        def printBoardWith(vals, printStream = sys.stdout):
-            oldVal = self._access(col, row)
-            for val in vals:
-                if val != INTERNAL_FREE:
-                    self._access(col, row, val)
-                    printBoard(printStream)
-            self._access(col, row, oldVal)
-
-        if col >= MAX_COL_INDEX and row >= MAX_ROW_INDEX:
-            self._solutions.append(self.clone())
-            #print  self._solutions
-            return
-        elif col == 0 and row == 0 and self._access(0, 0) != INTERNAL_FREE:
-            [nextCol, nextRow] = propagate()
-            self.__solveInternally(nextCol, nextRow)
-        else:
-            if self._iteration > self._printCycle:
-                self._iteration = 0
-                printBoard()
-            self._iteration += self._iterationRaise
-            vals = getValidVals()
-            # print [col, row, vals]
-            [nextCol, nextRow] = propagate()
-            for next in vals:
-                if next != INTERNAL_FREE:
-                    self._access(col, row, next)
-                    self.__solveInternally(nextCol, nextRow)
-            self._access(col, row, INTERNAL_FREE)
-
-
-    def solve(self):
-        self.__solveInternally(0, 0)
-        return self._solutions
-
-
+    while coords:
+        x, y = coords
+        print("Coords are " + str(x) + "|" + str(y))
+        coords = next_coordinates(x, y)
 
     
-class IterativeBoard(BaseBoard):
-    '''
-    Provides a iterative solving algorithm.
-    Should but is not more performant than the recursive one.
-    '''
-
-    def __init__(self):
-        BaseBoard.__init__(self)
-        self.row = 0
-        self.col = 0
-        self.solutions = []
-        self.metaIteration = 0
-        self.iteration = 0
-        self.remainingVals = [[OCCUPIED if self._access(j, i) != INTERNAL_FREE
-            else [k for k in range(9)]
-            for i in range(9)] for j in range(9)]
-
-
-    def tile(self, x, y, content = INVALID):
-        if 1 <= content <= 9:
-            self.remainingVals[x][y] = OCCUPIED
-        return BaseBoard.tile(self, x, y, content)
-
-    def valsRemaining(self, c, r):
-        val = self.remainingVals[c][r]
-        if val != OCCUPIED:
-            for i in range(9):
-                if val[i] != INTERNAL_FREE:
-                    return True
-        return False
-
-
-    def getNextVal(self):
-        values = self.remainingVals[self.col][self.row]
-        if values != OCCUPIED:
-            for i in range(9):
-                val = values[i]
-                if val != INTERNAL_FREE:
-                    self.remainingVals[self.col][self.row][i] = INTERNAL_FREE
-                    return val
-        return False
-
-
-    def propagate(self):
-        for i in range(self.col + 1, MAX_COL_INDEX + 1):
-            if self._access(i, self.row) == INTERNAL_FREE:
-                self.col = i
-                return True
-        for i in range(self.row + 1, MAX_ROW_INDEX + 1):
-            for j in range(9):
-                if self._access(j, i) == INTERNAL_FREE:
-                    self.col = j
-                    self.row = i
-                    return True
-        return False
-
-
-    def rewind(self):
-        i = self.row
-        j = self.col
-        while i >= 0:
-            while j >= 0:
-                if not self.remainingVals[j][i] == OCCUPIED:
-                    if self.valsRemaining(j, i) :
-                        self.row = i
-                        self.col = j
-                        return True
-                    self._access(j, i, INTERNAL_FREE)
-                j -= 1
-            j  = MAX_COL_INDEX
-            i -= 1
-        return False
-
-
-    def setValidVals(self):
-        '''
-        Will calculate all possible values that can be placed on the current
-        tile and places the result within remainingVals.
-        Does not check whether the current tile has been OCCUPIED.
-        '''
-        vals = self.remainingVals[self.col][self.row]
-        for i in range(9):
-            vals[i] = i
-        # Step one: Remove all values that appear within same column
-        for i in range(9):
-            tileContent = self._access(self.col, i)
-            if tileContent != INTERNAL_FREE:
-                vals[tileContent] = INTERNAL_FREE
-        # Step two: Remove all values that appear within same row
-        for i in range(9):
-            tileContent = self._access(i, self.row)
-            if tileContent != INTERNAL_FREE:
-                vals[tileContent] = INTERNAL_FREE
-        # Step three: Check 'boardlets'
-        boardletRow = int(self.row / 3) * 3
-        boardletCol = int(self.col / 3) * 3
-        for c in range(3):
-            for r in range(3):
-                tileContent = self._access(boardletCol + c, boardletRow + r)
-                if tileContent != INTERNAL_FREE:
-                    vals[tileContent] = INTERNAL_FREE
-
-
-    def printBoard(self, printStream = sys.stdout):
-        printStream.write(str(self))
-        printStream.write("\n")
-
-
-    def solve(self):
-        self.row = 0
-        self.col = 0
-        if not self._access(0, 0) == INTERNAL_FREE:
-            if not self.propagate():
-                # There are no free fields?
-                return
-        # Now we should have found a possibly free field
-        self.setValidVals()
-        while True:
-            if self.iteration >= self._printCycle:
-                print(self.metaIteration)
-                self.printBoard()
-                self.iteration = 0
-                self.metaIteration += self._printCycle
-            self.iteration += 1
-            if not self.valsRemaining(self.col, self.row):
-                if not self.rewind():
-                    return self._solutions
-            self._access(self.col, self.row, self.getNextVal())
-            if not self.propagate():
-                self.printBoard(sys.stderr)
-                print( "Found solution")
-                self._solutions.append(self.clone());
-                if not self.rewind():
-                    return self._solutions
-            else:
-                self.setValidVals()
-
-
-
-if __name__ == '__main__':
-    board = IterativeBoard()
-    # board = RecursiveBoard()
-    board.setPrintCycle(1)
-    board.tile(0, 0, 1)
-    board.tile(0, 1, 2)
-    board.tile(0, 2, 3)
-    board.tile(1, 0, 4)
-    board.tile(1, 1, 5)
-    board.tile(1, 2, 6)
-    board.tile(2, 0, 7)
-    board.tile(2, 1, 8)
-    board.tile(2, 2, 9)
-
-    board.tile(7, 5, 2)
-    board.tile(7, 6, 3)
-    board.tile(7, 7, 5)
-    board.tile(5, 5, 1)
-    board.tile(5, 6, 4)
-    board.tile(5, 7, 7)
-    board.tile(6, 5, 6)
-    board.tile(6, 6, 9)
-    board.tile(6, 7, 8)
-    # board.tile(7, 0, 1)
-    # board.tile(0, 1, 4)
-    # board.tile(1, 2, 2)
-    # board.tile(4, 3, 5)
-    # board.tile(6, 3, 4)
-    # board.tile(8, 3, 7)
-    # board.tile(2, 4, 8)
-    # board.tile(6, 4, 3)
-    # board.tile(2, 5, 1)
-    # board.tile(4, 5, 9)
-    # board.tile(0, 6, 3)
-    # board.tile(3, 6, 4)
-    # board.tile(6, 6, 2)
-    # board.tile(1, 7, 5)
-    # board.tile(3, 7, 1)
-    # board.tile(3, 8, 8)
-    # board.tile(5, 8, 6)
-
-    #board.tile(0, 0, 2)
-    # board.tile(0, 1, 9)
-    # board.tile(0, 3, 7)
-    # board.tile(0, 4, 5)
-    # board.tile(0, 7, 1)
-
-    # board.tile(1, 0, 6)
-    # board.tile(1, 2, 8)
-    # board.tile(1, 3, 2)
-    # board.tile(1, 4, 1)
-    # board.tile(1, 5, 4)
-    # board.tile(1, 7, 9)
-    # board.tile(1, 8, 7)
-
-    # board.tile(2, 0, 1)
-    # board.tile(2, 1, 4)
-    # board.tile(2, 2, 7)
-    # board.tile(2, 3, 6)
-    # board.tile(2, 4, 3)
-    # board.tile(2, 5, 9)
-    # board.tile(2, 6, 5)
-    # board.tile(2, 7, 8)
-    # board.tile(2, 8, 2)
-
-    # board.tile(3, 0, 9)
-    # board.tile(3, 1, 6)
-    # board.tile(3, 2, 5)
-    # board.tile(3, 5, 1)
-    # board.tile(3, 6, 2)
-    # board.tile(3, 7, 7)
-
-    # board.tile(4, 0, 8)
-    # board.tile(4, 1, 3)
-    # board.tile(4, 2, 4)
-    # board.tile(4, 4, 2)
-    # board.tile(4, 5, 7)
-    # board.tile(4, 6, 6)
-    # board.tile(4, 7, 5)
-    # board.tile(4, 8, 1)
-
-    # board.tile(5, 0, 7)
-    # board.tile(5, 1, 2)
-    # board.tile(5, 2, 1)
-    # board.tile(5, 3, 3)
-    # board.tile(5, 4, 6)
-    # board.tile(5, 6, 9)
-    # board.tile(5, 7, 4)
-    # board.tile(5, 8, 8)
-
-    # board.tile(6, 1, 7)
-    # board.tile(6, 2, 2)
-    # board.tile(6, 3, 8)
-    # board.tile(6, 4, 9)
-    # board.tile(6, 5, 6)
-    # board.tile(6, 6, 1)
-    # board.tile(6, 7, 3)
-    # board.tile(6, 8, 4)
-
-    # board.tile(7, 0, 4)
-    # board.tile(7, 1, 1)
-    # board.tile(7, 2, 6)
-    # board.tile(7, 3, 5)
-    # board.tile(7, 5, 3)
-    # board.tile(7, 6, 8)
-    # board.tile(7, 7, 2)
-
-    # board.tile(8, 0, 3)
-    # board.tile(8, 1, 8)
-    # board.tile(8, 3, 1)
-    # board.tile(8, 4, 4)
-    # board.tile(8, 5, 2)
-    # board.tile(8, 6, 7)
-    # board.tile(8, 8, 5)
-
-    print("This is the given board: \n")
-    print(board)
-    sys.stderr.write(str(board))
-    sys.stderr.write("\n")
-    sys.stdin.readline()
-    sols = board.solve()
-    for i in sols:
-        print(str(i))
-
