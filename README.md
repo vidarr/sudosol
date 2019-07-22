@@ -21,3 +21,17 @@ Clicking it will present you another solution if one is available.
 
 That's it.
 
+# Beware
+
+Currently, the solver has been redesigned to filter out impossible solutions
+as soon as a value of a field has been pinned down to one value.
+
+This should suffice to solve a sudoku with a unique solution.
+
+If there are several solutions, however, the current version has not been provided
+with the iterative solver yet.
+
+The old version with the iterative solver is still available underneath the tag
+'1.0' .
+
+
