@@ -75,9 +75,9 @@ class GuiMode(Enum):
 def create_gui(root, field=Field(), mode=GuiMode.SOLVE):
 
     def show_solution(field):
-        # create_gui(root, field=field, mode=GuiMode.SHOW)
         print(str(field))
-        sys.stdin.readline()
+        create_gui(root, field=field, mode=GuiMode.SHOW)
+
 
 
     def solve_field():
@@ -114,14 +114,21 @@ def create_gui(root, field=Field(), mode=GuiMode.SOLVE):
     frame.grid_columnconfigure(0, weight=0)
     frame.grid(columnspan=9 + 2, row=current_row, sticky="NESW")
 
-    button_command = show_solution
-    if GuiMode.SOLVE == mode:
-        button_command=solve_field
-    elif GuiMode.SHOW:
-        button_command = show_solution
+    button_command = solve_field
+    button_text = "Solve"
 
-    button = Button(frame, text="Solve", command=button_command)
+    var = IntVar()
+
+    if GuiMode.SHOW == mode:
+        button_command = lambda: var.set(1)
+        button_text = "Next solution"
+
+    button = Button(frame, text=button_text, command=button_command)
     button.grid()
+
+    if GuiMode.SHOW == mode:
+        button.wait_variable(var)
+        frame.destroy()
 
 
 
