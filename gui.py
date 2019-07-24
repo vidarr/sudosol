@@ -2,6 +2,8 @@ from tkinter import *
 from tkinter.ttk import Separator
 from sudoku  import Field
 
+from enum import Enum
+
 import sys
 
 #-------------------------------------------------------------------------------
@@ -59,16 +61,27 @@ class SquareWidget:
 
     def update(self):
         self.__textvar.set(str(self.__square))
-        print(str(self.__square))
 
     def __getattr__(self, name):
         return getattr(self.__widget, name)
 
 #-------------------------------------------------------------------------------
 
-def create_gui(root):
+class GuiMode(Enum):
 
-    field = Field()
+    SOLVE = "solve"
+    SHOW = "show"
+
+def create_gui(root, field=Field(), mode=GuiMode.SOLVE):
+
+    def show_solution(field):
+        # create_gui(root, field=field, mode=GuiMode.SHOW)
+        print(str(field))
+        sys.stdin.readline()
+
+
+    def solve_field():
+        field.next_solution(show_solution)
 
     for c in range(3):
         root.grid_columnconfigure(c, weight=0)
@@ -96,6 +109,21 @@ def create_gui(root):
             w = Separator(root, orient="horizontal")
             w.grid(column=current_col, row=current_row)
             current_row += 1
+
+    frame = Frame(root)
+    frame.grid_columnconfigure(0, weight=0)
+    frame.grid(columnspan=9 + 2, row=current_row, sticky="NESW")
+
+    button_command = show_solution
+    if GuiMode.SOLVE == mode:
+        button_command=solve_field
+    elif GuiMode.SHOW:
+        button_command = show_solution
+
+    button = Button(frame, text="Solve", command=button_command)
+    button.grid()
+
+
 
 #-------------------------------------------------------------------------------
 

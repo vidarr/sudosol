@@ -56,20 +56,17 @@ import sys
 
 #-------------------------------------------------------------------------------
 
-def next_coordinates(x, y):
-    if y < 3:
-        return (x, y + 1)
-    if x < 3:
-        return (x + 1, 1)
-    return None
-
-#-------------------------------------------------------------------------------
-
 class Square:
 
     def __init__(self):
         self._possibilities = [i for i in range(1, 10)]
         self._listeners = []
+
+    def copy(self):
+        new_square = Square()
+        new_square._possibilities = self._possibilities.copy()
+        new_square._listeners = self._listeners.copy()
+        return new_square
 
     def __str_matrix(self):
         content = []
@@ -79,7 +76,6 @@ class Square:
             if v not in self._possibilities:
                 v = ' '
             row.append(str(v))
-            print("{}: {}".format(i, row))
             if i % 3 == 0:
                 content.append("".join(row))
                 row = []
@@ -94,8 +90,11 @@ class Square:
         for listener in self._listeners:
             listener(self)
 
-    def possibilities(self):
-        return self._possibilities
+    def possibilities(self, new_possibilities=None):
+        current = self._possibilities
+        if new_possibilities:
+            self._possibilities = new_possibilities
+        return current
 
     def set(self, v):
         p = self._possibilities
@@ -120,8 +119,6 @@ class Square:
         (because it was not contained within)
         """
 
-        if len(self._possibilities) < 1:
-            raise("Cannot drop")
         if x in self._possibilities:
             self._possibilities.remove(x)
             self._notify_all()
@@ -137,10 +134,6 @@ class Field:
 
     def __init__(self):
         self._squares = [[Square() for i in range(1,10)] for i in range(1,10)]
-        # During solution process, this 'shadow field' will keep a list of
-        # values not tried yet.
-        self._solution_state = [[[] for i in range(1,10)] for i in range(1,10)]
-        self._solution_current_field = [1,1]
 
     #---------------------------------------------------------------------------
 
@@ -158,6 +151,21 @@ class Field:
             return False
 
         self._pin(x, y, value)
+
+    #---------------------------------------------------------------------------
+
+    def copy(self):
+        new_field = Field()
+        new_squares = []
+        for row in self._squares:
+            new_row = []
+            new_squares.append(new_row)
+            for square in row:
+                new_row.append(square.copy())
+
+        new_field._squares = new_squares
+
+        return new_field
 
     #---------------------------------------------------------------------------
 
@@ -210,7 +218,6 @@ class Field:
     #---------------------------------------------------------------------------
 
     def _remove_from_subfield(self, x, y, value):
-        print("Going to drop " + str(x) + ":" + str(y))
         pinned = []
         x_subfield = int((x - 1) / 3)
         y_subfield = int((y - 1) / 3)
@@ -218,8 +225,6 @@ class Field:
             for yv in [y_subfield * 3 + i for i in range(1, 4)]:
                 if xv == x and yv == y:
                     continue
-                print("Dropping " + str(value) + " from " +
-                        str(yv) + ":" + str(xv))
                 s = self._squares[yv - 1][xv - 1]
                 if s.drop(value) and s.is_pinned():
                     pinned.append((xv, yv, s.pinned_value()))
@@ -227,51 +232,77 @@ class Field:
 
     #---------------------------------------------------------------------------
 
-    def print(self):
+    def __str__(self):
 
+        rows = []
         lineno = 1
         for y in self._squares:
+            row = []
             colno = 1
             for x in y:
-                sys.stdout.write(
+                row.append(
                         "[" +
                         " ".join( [str(v) for v in x.possibilities()]) +
                         "]" + str("   "))
                 colno = (colno + 1) % 3
                 if colno == 1:
-                    sys.stdout.write("  ")
-            sys.stdout.write("\n")
+                    row.append("  ")
+            rows.append(" ".join(row))
             lineno = (lineno + 1) % 3
             if lineno == 1:
-                sys.stdout.write("\n")
+                rows.append("")
+        return "\n".join(rows)
 
     #---------------------------------------------------------------------------
 
-    def next_solution(self):
-        # Continue with state in solution_state and solution_current_field
-        pass
+    def print(self):
+        sys.stdout.write(str(self))
 
-#-------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    # field = Field()
-    # line = " "
-    # while line:
-    #     line = sys.stdin.readline()
-    #     line = line.strip()
-    #     if len(line) != 3:
-    #         continue
-    #     x = int(line[0])
-    #     y = int(line[1])
-    #     v = int(line[2])
-    #     field.set(x, y, v)
-    #     field.print()
+    def __next_solution(self, anounce_solution, col, row):
+        """Needs rework!!!!"""
 
-    coords = (1, 1)
+        def next_coordinates(x, y):
+            if y < 9:
+                return (x, y + 1)
+            if x < 9:
+                return (x + 1, 1)
+            return None
 
-    while coords:
-        x, y = coords
-        print("Coords are " + str(x) + "|" + str(y))
-        coords = next_coordinates(x, y)
+        possibilities = self.get_square(col, row).possibilities().copy()
 
-    
+        if 1 > len(possibilities):
+            return False
+
+        next_coord = next_coordinates(col, row)
+
+        if not next_coord:
+            for p in possibilities:
+                print("Last {}:{} : {} ({})".format(col, row, p, possibilities))
+                solve_board = self.copy()
+                solve_board.set(col, row, p)
+                anounce_solution(self)
+            return 0 < len(possibilities)
+
+        next_col, next_row = next_coord
+
+        solution_found = False
+
+        for p in possibilities:
+            solve_board = self.copy()
+            solve_board.set(col, row, p)
+            print("Next {}:{} : {} ({})".format(next_col, next_row, p, possibilities))
+            solution_found = solve_board.__next_solution(anounce_solution, next_col, next_row) or solution_found
+
+        return solution_found
+
+    #---------------------------------------------------------------------------
+
+    def next_solution(self, anounce_solution=None):
+
+        if not anounce_solution:
+            anounce_solution=lambda x: sys.stdout.write(str(x))
+        solution_found = self.__next_solution(anounce_solution, 1, 1)
+        return solution_found
+
