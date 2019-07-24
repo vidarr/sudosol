@@ -14,23 +14,23 @@ Just call
 
 This will give you a blank sudoku board:
 
-![Main window] (doc/mainwindow.png)
+![Main window](doc/mainwindow.png)
 
 Each square show initially shows the numbers 1 through 9.
 Clicking on one square, a new window will pop up allowing you to select one
 of the numbers:
 
-![Selection window] (doc/selectwindow_all.png)
+![Selection window](doc/selectwindow_all.png)
 
 If the square does not allow some numbers, they won't be selectable:
 
-![Selection window - some numbers disabled] (doc/selectwindow_restricted.png)
+![Selection window - some numbers disabled](doc/selectwindow_restricted.png)
 
 Right after clicking, the selection window will close and the contents of all
 other squares updated by removing all numbers that would violate the rules of
 sudoku:
 
-![Solution window] (doc/solution.png)
+![Solution window](doc/solution.png)
 
 Click 'Solve' at the bottom and wait...
 As soon as all solutions have been found (if you use a Sudoku posed within a
